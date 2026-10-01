@@ -1,0 +1,50 @@
+name: Build Stellarium Web Engine for Pages
+
+on:
+  push:
+    branches: [deploy/github-pages]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-pages:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout deployment branch
+        uses: actions/checkout@v4
+
+      - name: Set up Emscripten
+        uses: mymindstorm/setup-emsdk@v14
+        with:
+          version: '1.39.20'
+          actions-cache-folder: emsdk-cache
+
+      - name: Install SCons
+        run: |
+          python3 -m pip install 'scons==4.5.2'
+
+      - name: Build WebAssembly engine
+        run: |
+          emcc --version
+          scons --version
+          make js
+
+      - name: Assemble static Pages site
+        run: |
+          rm -rf _site
+          mkdir -p _site
+          cp -R apps/simple-html/. _site/
+          cp build/stellarium-web-engine.js _site/static/js/stellarium-web-engine.js
+          cp build/stellarium-web-engine.wasm _site/static/js/stellarium-web-engine.wasm
+          cp _site/stellarium-web-engine.html _site/index.html
+          touch _site/.nojekyll
+
+      - name: Publish gh-pages branch
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./_site
+          publish_branch: gh-pages
+          force_orphan: true
